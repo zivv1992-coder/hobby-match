@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>HobbyMatch – כניסה</title>
+  <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;600;700;800;900&display=swap" rel="stylesheet"/>
+  <style>
+    :root{--p:#7c3aed;--pd:#4c1d95;--pp:#ede9fe;--g:linear-gradient(135deg,#4c1d95,#2563eb);--f:'Heebo',sans-serif;}
+    *{box-sizing:border-box;margin:0;padding:0;}
+    body{font-family:var(--f);background:#f0edff;min-height:100vh;direction:rtl;display:flex;align-items:center;justify-content:center;padding:20px;}
+    .bg{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden;}
+    .b1{position:absolute;width:500px;height:500px;background:#7c3aed;border-radius:50%;filter:blur(80px);opacity:.3;top:-120px;right:-140px;animation:fl 12s ease-in-out infinite;}
+    .b2{position:absolute;width:380px;height:380px;background:#2563eb;border-radius:50%;filter:blur(80px);opacity:.3;bottom:-80px;left:-100px;animation:fl 12s ease-in-out infinite 4s;}
+    @keyframes fl{0%,100%{transform:translateY(0)}50%{transform:translateY(-30px)}}
+    .card{position:relative;z-index:1;background:linear-gradient(160deg,#fff,#f5f3ff);border:1.5px solid rgba(124,58,237,.12);border-radius:24px;box-shadow:0 8px 40px rgba(37,99,235,.18);padding:44px 36px;max-width:420px;width:100%;text-align:center;animation:fu .5s ease both;}
+    @keyframes fu{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:none}}
+    .logo{font-size:2.6rem;margin-bottom:14px;}
+    h1{font-size:1.65rem;font-weight:900;color:var(--pd);margin-bottom:6px;}
+    .sub{font-size:.88rem;color:#6b5fa0;line-height:1.6;margin-bottom:26px;}
+    .field{margin-bottom:14px;text-align:right;}
+    label{display:block;font-size:.81rem;font-weight:700;color:var(--pd);margin-bottom:5px;}
+    input{width:100%;padding:12px 14px;border:1.8px solid #ddd6fe;border-radius:12px;font-family:var(--f);font-size:.98rem;color:#1e1b4b;outline:none;direction:ltr;text-align:center;transition:border-color .2s;}
+    input:focus{border-color:var(--p);box-shadow:0 0 0 3px rgba(124,58,237,.1);}
+    input::placeholder{color:#b4a9d9;font-size:.88rem;}
+    .btn{width:100%;padding:13px;background:var(--g);color:#fff;border:none;border-radius:13px;font-family:var(--f);font-size:1rem;font-weight:800;cursor:pointer;transition:opacity .2s,transform .2s;margin-top:6px;box-shadow:0 4px 20px rgba(124,58,237,.3);}
+    .btn:hover{opacity:.88;transform:translateY(-1px);}
+    .btn:disabled{opacity:.6;cursor:not-allowed;transform:none;}
+    .error{background:#fef2f2;border:1px solid #fecaca;color:#dc2626;border-radius:10px;padding:9px 14px;font-size:.83rem;margin-top:12px;display:none;}
+    .error.show{display:block;}
+    .spinner{display:inline-block;width:16px;height:16px;border:2.5px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;vertical-align:middle;margin-left:6px;}
+    @keyframes spin{to{transform:rotate(360deg)}}
+    .step{display:none;} .step.active{display:block;}
+    .resend{font-size:.8rem;color:var(--p);cursor:pointer;margin-top:12px;display:inline-block;font-weight:600;}
+    .resend:hover{text-decoration:underline;}
+    .code-hint{font-size:.78rem;color:#9d8ec4;margin-top:8px;}
+  </style>
+</head>
+<body>
+<div class="bg"><div class="b1"></div><div class="b2"></div></div>
+<div class="card">
+  <div class="logo">🤝</div>
+  <h1>כניסה ל-HobbyMatch</h1>
+
+  <!-- STEP 1: Email -->
+  <div class="step active" id="step1">
+    <p class="sub">הכנס את המייל שנרשמת איתו וישלח לך קוד כניסה</p>
+    <div class="field">
+      <label>כתובת אימייל</label>
+      <input type="email" id="emailInput" placeholder="israel@example.com" onkeydown="if(event.key==='Enter')sendCode()"/>
+    </div>
+    <button class="btn" id="sendBtn" onclick="sendCode()">שלח קוד כניסה 📩</button>
+    <div class="error" id="error1"></div>
+  </div>
+
+  <!-- STEP 2: Code -->
+  <div class="step" id="step2">
+    <p class="sub" id="codeSub">שלחנו קוד בן 6 ספרות למייל שלך</p>
+    <div class="field">
+      <label>קוד הכניסה</label>
+      <input type="text" id="codeInput" placeholder="123456" maxlength="6" oninput="this.value=this.value.replace(/\D/g,'')" onkeydown="if(event.key==='Enter')verifyCode()"/>
+    </div>
+    <button class="btn" id="verifyBtn" onclick="verifyCode()">כניסה 🚀</button>
+    <p class="code-hint">הקוד תקף ל-10 דקות</p>
+    <span class="resend" onclick="goBack()">← שנה אימייל</span>
+    <div class="error" id="error2"></div>
+  </div>
+</div>
+
+<script>
+  // ── REPLACE WITH YOUR N8N URLS ──
+  const SEND_CODE_URL   = "https://ziv92.app.n8n.cloud/webhook/hm-send-code";
+  const VERIFY_CODE_URL = "https://ziv92.app.n8n.cloud/webhook/hm-verify-code";
+
+  let userEmail = '';
+
+  async function sendCode() {
+    const email = document.getElementById('emailInput').value.trim();
+    if (!email || !email.includes('@')) {
+      showError('error1', 'נא להכניס כתובת אימייל תקינה');
+      return;
+    }
+    userEmail = email;
+    const btn = document.getElementById('sendBtn');
+    btn.disabled = true;
+    btn.innerHTML = 'שולח... <span class="spinner"></span>';
+
+    try {
+      const res = await fetch(SEND_CODE_URL, {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({email})
+      });
+      const data = await res.json();
+      if (data.status === 'not_found') {
+        showError('error1', 'המייל הזה לא רשום. אפשר להירשם קודם.');
+        btn.disabled = false;
+        btn.innerHTML = 'שלח קוד כניסה 📩';
+      } else {
+        document.getElementById('codeSub').textContent = `שלחנו קוד ל-${email}`;
+        document.getElementById('step1').classList.remove('active');
+        document.getElementById('step2').classList.add('active');
+      }
+    } catch {
+      showError('error1', 'שגיאה בשליחה, נסה שוב');
+      btn.disabled = false;
+      btn.innerHTML = 'שלח קוד כניסה 📩';
+    }
+  }
+
+  async function verifyCode() {
+    const code = document.getElementById('codeInput').value.trim();
+    if (code.length !== 6) {
+      showError('error2', 'הקוד חייב להיות 6 ספרות');
+      return;
+    }
+    const btn = document.getElementById('verifyBtn');
+    btn.disabled = true;
+    btn.innerHTML = 'מאמת... <span class="spinner"></span>';
+
+    try {
+      const res = await fetch(VERIFY_CODE_URL, {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({email: userEmail, code})
+      });
+      const data = await res.json();
+      if (data.status === 'ok') {
+        localStorage.setItem('hobbyMatchUser', JSON.stringify(data.user));
+        localStorage.setItem('hobbyMatchCity', data.user.city || '');
+        window.location.href = 'profiles.html';
+      } else {
+        showError('error2', 'קוד שגוי או פג תוקף, נסה שוב');
+        btn.disabled = false;
+        btn.innerHTML = 'כניסה 🚀';
+      }
+    } catch {
+      showError('error2', 'שגיאה, נסה שוב');
+      btn.disabled = false;
+      btn.innerHTML = 'כניסה 🚀';
+    }
+  }
+
+  function goBack() {
+    document.getElementById('step2').classList.remove('active');
+    document.getElementById('step1').classList.add('active');
+    document.getElementById('sendBtn').disabled = false;
+    document.getElementById('sendBtn').innerHTML = 'שלח קוד כניסה 📩';
+    document.getElementById('codeInput').value = '';
+  }
+
+  function showError(id, msg) {
+    const el = document.getElementById(id);
+    el.textContent = msg;
+    el.classList.add('show');
+    setTimeout(() => el.classList.remove('show'), 4000);
+  }
+</script>
+</body>
+</html>
